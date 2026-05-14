@@ -192,7 +192,6 @@ function renderProducts() {
               <h3>${item.name}</h3>
               <span class="price">${formatPrice(item.price)}</span>
             </div>
-            <p>${item.description}</p>
             <div class="meta">
               <span>${item.material}</span>
               <span>Срок печати: ${item.leadDays} дн.</span>
@@ -206,6 +205,8 @@ function renderProducts() {
       `,
     )
     .join("");
+
+  wireGalleryInteractions(refs.productsGrid);
 }
 
 function addToCart(productId) {
@@ -364,6 +365,8 @@ function openProductModal(productId) {
     closeModal();
   });
 
+  wireGalleryInteractions(refs.modalBody);
+
   refs.productModal.showModal();
   refs.overlay.classList.add("active");
 }
@@ -371,16 +374,136 @@ function openProductModal(productId) {
 function renderProductVisual(item, isModal = false) {
   const wrapperClass = isModal ? "modal-visual" : "product-visual";
   const imageClass = isModal ? "modal-image" : "product-image";
-  const hasImage = typeof item.image === "string" && item.image.trim().length > 0;
-  const imageMarkup = hasImage ? `<img class="${imageClass}" src="${item.image}" alt="${item.name}" />` : '<div class="wireframe"></div>';
-  const className = hasImage ? `${wrapperClass} has-image` : wrapperClass;
+  const images = getProductImages(item);
+  const hasImages = images.length > 0;
+  const className = hasImages ? `${wrapperClass} has-image` : wrapperClass;
+  const slidesMarkup = hasImages
+    ? images
+        .map(
+          (src, index) =>
+            `<img class="${imageClass} gallery-slide${index === 0 ? " is-active" : ""}" src="${src}" alt="${item.name}" data-gallery-slide="${index}" />`,
+        )
+        .join("")
+    : '<div class="wireframe"></div>';
+  const controlsMarkup =
+    images.length > 1
+      ? `
+      <button type="button" class="gallery-arrow prev" data-gallery-prev aria-label="Предыдущее фото">‹</button>
+      <button type="button" class="gallery-arrow next" data-gallery-next aria-label="Следующее фото">›</button>
+      <div class="gallery-dots">
+        ${images
+          .map(
+            (_, index) =>
+              `<span class="gallery-dot${index === 0 ? " is-active" : ""}" data-gallery-dot="${index}"></span>`,
+          )
+          .join("")}
+      </div>
+    `
+      : "";
   return `
     <div class="${className}" style="--card-gradient: ${item.gradient}">
-      ${imageMarkup}
+      <div class="gallery" data-gallery-index="0">
+        ${slidesMarkup}
+        ${controlsMarkup}
+      </div>
       <span class="product-badge">${item.badge}</span>
       <span class="product-category">${item.category}</span>
     </div>
   `;
+}
+
+function getProductImages(item) {
+  if (Array.isArray(item.images) && item.images.length > 0) {
+    return item.images.filter((src) => typeof src === "string" && src.trim().length > 0);
+  }
+  if (typeof item.image === "string" && item.image.trim().length > 0) {
+    return [item.image];
+  }
+  return [];
+}
+
+function wireGalleryInteractions(scope) {
+  if (!scope) {
+    return;
+  }
+  const galleries = scope.querySelectorAll(".gallery");
+  galleries.forEach((gallery) => {
+    if (gallery.dataset.wired === "1") {
+      return;
+    }
+    gallery.dataset.wired = "1";
+
+    gallery.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      if (target.closest("[data-gallery-prev]")) {
+        shiftGallery(gallery, -1);
+        return;
+      }
+      if (target.closest("[data-gallery-next]")) {
+        shiftGallery(gallery, 1);
+        return;
+      }
+      const dot = target.closest("[data-gallery-dot]");
+      if (dot) {
+        setGalleryIndex(gallery, Number(dot.dataset.galleryDot));
+      }
+    });
+
+    let startX = 0;
+    let endX = 0;
+    gallery.addEventListener(
+      "touchstart",
+      (event) => {
+        startX = event.changedTouches[0]?.clientX ?? 0;
+      },
+      { passive: true },
+    );
+    gallery.addEventListener(
+      "touchend",
+      (event) => {
+        endX = event.changedTouches[0]?.clientX ?? 0;
+        const delta = endX - startX;
+        if (Math.abs(delta) < 35) {
+          return;
+        }
+        if (delta < 0) {
+          shiftGallery(gallery, 1);
+        } else {
+          shiftGallery(gallery, -1);
+        }
+      },
+      { passive: true },
+    );
+  });
+}
+
+function shiftGallery(gallery, delta) {
+  const slides = gallery.querySelectorAll("[data-gallery-slide]");
+  const total = slides.length;
+  if (total <= 1) {
+    return;
+  }
+  const current = Number(gallery.dataset.galleryIndex || 0);
+  const next = (current + delta + total) % total;
+  setGalleryIndex(gallery, next);
+}
+
+function setGalleryIndex(gallery, nextIndex) {
+  const slides = gallery.querySelectorAll("[data-gallery-slide]");
+  if (slides.length === 0) {
+    return;
+  }
+  const dots = gallery.querySelectorAll("[data-gallery-dot]");
+  gallery.dataset.galleryIndex = String(nextIndex);
+  slides.forEach((slide, index) => {
+    slide.classList.toggle("is-active", index === nextIndex);
+  });
+  dots.forEach((dot, index) => {
+    dot.classList.toggle("is-active", index === nextIndex);
+  });
 }
 
 function initChat() {
