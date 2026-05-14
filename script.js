@@ -7,7 +7,7 @@ const products = [
   {
     id: "rs-001",
     name: "Ящик",
-    category: "Для развития",
+    category: "Обучение",
     price: 250,
     material: "PLA",
     badge: "Новинка",
@@ -27,7 +27,7 @@ const products = [
     {
     id: "rs-002",
     name: "Буквы (33 штуки)",
-    category: "Для развития",
+    category: "Обучение",
     price: 1500,
     material: "PLA",
     badge: "Новинка",
@@ -43,7 +43,7 @@ const products = [
     {
     id: "rs-003",
     name: "Буквы (1 штука)",
-    category: "Для развития",
+    category: "Обучение",
     price: 70,
     material: "PLA",
     badge: "Новинка",
