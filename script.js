@@ -237,7 +237,6 @@ function renderProducts() {
             </div>
             <div class="meta">
               <span>${item.material}</span>
-              <span>Срок печати: ${item.leadDays} дн.</span>
             </div>
             <div class="card-actions">
               <button type="button" class="btn btn-primary" data-add-to-cart="${item.id}">В корзину</button>
@@ -404,7 +403,6 @@ function openProductModal(productId) {
       <ul class="modal-list">
         <li><span>Цена</span><strong>${formatPrice(item.price)}</strong></li>
         <li><span>Материал</span><strong>${item.material}</strong></li>
-        <li><span>Срок печати</span><strong>${item.leadDays} дн.</strong></li>
       </ul>
       ${renderColorControls(item)}
       <button class="btn btn-primary wide" data-modal-add="${item.id}">Добавить в корзину</button>
