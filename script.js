@@ -16,7 +16,9 @@ const products = [
     createdAt: "2026-05-14",
     description: "Ящик для разных игр.",
     tags: ["ящик", "коробка", "игры"],
-    image: "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
+    images: [
+      "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
+    ],
     gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
   },
     {
@@ -31,6 +33,9 @@ const products = [
     createdAt: "2026-05-14",
     description: "Буквы для отработки гласных/согласных, твёрдых/мягких, шнуровка, а также выкладывание бусинок.",
     tags: ["буквы", "алфавит", "игры", "шнуровка", "азбука"],
+    images: [
+      "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
+    ],
     gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
   },
 ];
@@ -429,6 +434,9 @@ function renderProductVisual(item, isModal = false) {
 function getProductImages(item) {
   if (Array.isArray(item.images) && item.images.length > 0) {
     return item.images.filter((src) => typeof src === "string" && src.trim().length > 0);
+  }
+  if (Array.isArray(item.image) && item.image.length > 0) {
+    return item.image.filter((src) => typeof src === "string" && src.trim().length > 0);
   }
   if (typeof item.image === "string" && item.image.trim().length > 0) {
     return [item.image];
