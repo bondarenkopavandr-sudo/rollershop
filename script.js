@@ -8,7 +8,7 @@ const products = [
     id: "rs-001",
     name: "Ящик",
     category: "Для развития",
-    price: 300,
+    price: 250,
     material: "PLA",
     badge: "Новинка",
     popularScore: 90,
