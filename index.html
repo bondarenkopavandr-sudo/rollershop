@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RollerShop - магазин изделий для 3D-печати</title>
+    <meta
+      name="description"
+      content="RollerShop - магазин стильных и практичных вещей, напечатанных на 3D принтере."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <div class="background-layer" aria-hidden="true">
+      <div class="spot spot-1"></div>
+      <div class="spot spot-2"></div>
+      <div class="grid-overlay"></div>
+    </div>
+
+    <header class="header reveal">
+      <a href="#" class="brand">
+        <span class="brand-mark"></span>
+        <span>
+          <strong>RollerShop</strong>
+          <small>RollerShop</small>
+        </span>
+      </a>
+
+      <nav class="main-nav">
+        <a href="#catalog">Каталог</a>
+        <a href="#custom-order">Кастомный заказ</a>
+      </nav>
+
+      <button class="cart-button" id="openCartButton" aria-label="Открыть корзину">
+        <span>Корзина</span>
+        <span class="cart-count" id="cartCount">0</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero reveal">
+        <div class="hero-copy">
+          <p class="eyebrow">RollerShop • Каталог изделий для 3D-печати</p>
+          <h1>Уникальные вещи на 3D-принтере для дома, гейминга и рабочего стола</h1>
+          <p class="hero-text">
+            Подбирай готовые модели из каталога или заказывай кастомные решения под свои задачи.
+            Доступны разные материалы и цвета.
+          </p>
+          <div class="hero-actions">
+            <a href="#catalog" class="btn btn-primary">Смотреть товары</a>
+            <a href="#custom-order" class="btn btn-secondary">Кастомный заказ</a>
+          </div>
+        </div>
+
+      </section>
+
+      <section class="section reveal" id="catalog">
+        <div class="section-heading">
+          <h2>Каталог товаров</h2>
+          <p>
+            Фильтруй по категориям, сортируй по цене и добавляй товары в корзину.
+            Товары добавляются в `script.js` в массиве `products`.
+          </p>
+        </div>
+
+        <div class="controls">
+          <label class="control">
+            <span>Поиск</span>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Например: органайзер, лампа, держатель"
+            />
+          </label>
+          <label class="control">
+            <span>Категория</span>
+            <select id="categorySelect"></select>
+          </label>
+          <label class="control">
+            <span>Сортировка</span>
+            <select id="sortSelect">
+              <option value="popular">Сначала популярные</option>
+              <option value="newest">Сначала новинки</option>
+              <option value="priceAsc">Сначала дешевле</option>
+              <option value="priceDesc">Сначала дороже</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="products-grid" id="productsGrid"></div>
+        <p class="empty-state hidden" id="emptyState">
+          Товаров пока нет. Добавь позиции в `script.js` в массив `products`.
+        </p>
+      </section>
+
+      <section class="section reveal" id="custom-order">
+        <div class="custom-order">
+          <div>
+            <h2>Нужна кастомная модель?</h2>
+            <p>
+              Присылай идею: поможем с конструкцией, материалом и тиражом. Подходит для
+              прототипов, подарков и маленьких брендов.
+            </p>
+          </div>
+          <a class="btn btn-primary" href="mailto:hello@rollershop.store?subject=Кастомный заказ">
+            Обсудить проект
+          </a>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <p>© 2026 RollerShop. Магазин изделий для 3D-печати.</p>
+    </footer>
+
+    <div class="overlay" id="overlay"></div>
+
+    <aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
+      <div class="drawer-header">
+        <h2>Корзина</h2>
+        <button class="icon-button" id="closeCartButton" aria-label="Закрыть корзину">✕</button>
+      </div>
+      <div class="cart-items" id="cartItems"></div>
+      <div class="cart-summary">
+        <div class="summary-row">
+          <span>Сумма</span>
+          <strong id="subtotalValue">0 ₽</strong>
+        </div>
+        <div class="summary-row">
+          <span>Доставка</span>
+          <strong id="shippingValue">0 ₽</strong>
+        </div>
+        <div class="summary-row total">
+          <span>Итого</span>
+          <strong id="totalValue">0 ₽</strong>
+        </div>
+        <div class="shipping-progress">
+          <p id="shippingHint">Добавьте товары для бесплатной доставки</p>
+          <div class="progress-track">
+            <div class="progress-fill" id="shippingProgress"></div>
+          </div>
+        </div>
+        <button id="checkoutButton" class="btn btn-primary wide">Оформить заказ</button>
+      </div>
+    </aside>
+
+    <dialog class="product-modal" id="productModal">
+      <button class="icon-button modal-close" id="closeModalButton" aria-label="Закрыть окно">
+        ✕
+      </button>
+      <div class="modal-body" id="modalBody"></div>
+    </dialog>
+
+    <section class="chat-widget" id="chatWidget" aria-label="Чат поддержки">
+      <button class="chat-toggle" id="chatToggleButton" type="button">Чат</button>
+      <div class="chat-panel hidden" id="chatPanel">
+        <header class="chat-header">
+          <strong>RollerShop Chat</strong>
+          <button class="icon-button" id="chatCloseButton" type="button" aria-label="Закрыть чат">
+            ✕
+          </button>
+        </header>
+        <div class="chat-settings">
+          <label for="apiKeyInput">OpenAI API key</label>
+          <div class="chat-settings-row">
+            <input id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
+            <button id="saveApiKeyButton" class="btn btn-secondary" type="button">Сохранить</button>
+          </div>
+          <small id="aiStatusText">AI выключен. Можно общаться в локальном режиме.</small>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <form class="chat-form" id="chatForm">
+          <input
+            id="chatInput"
+            type="text"
+            placeholder="Напиши вопрос: доставка, материалы, кастом..."
+            autocomplete="off"
+          />
+          <button class="btn btn-primary" type="submit">Отправить</button>
+        </form>
+      </div>
+    </section>
+  </body>
+</html>

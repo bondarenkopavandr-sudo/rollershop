@@ -1,0 +1,673 @@
+const FREE_SHIPPING_THRESHOLD = 7000;
+const STORAGE_KEY = "rollershop-cart-v1";
+const LEGACY_STORAGE_KEY = "layerforge-cart-v1";
+const CHAT_KEY_STORAGE = "rollershop-openai-key";
+const CHAT_MODEL = "gpt-4.1-mini";
+
+const products = [
+  {
+    id: "rs-001",
+    name: "Ящик",
+    category: "Для развития",
+    price: 300,
+    leadDays: 2,
+    material: "PLA",
+    badge: "Новинка",
+    popularScore: 90,
+    createdAt: "2026-05-14",
+    description: "Ящик для разных игр.",
+    tags: ["ящик", "коробка", "игры"],
+    image: "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
+    gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
+  },
+];
+
+const state = {
+  search: "",
+  category: "all",
+  sort: "popular",
+  cart: loadCart(),
+  chatApiKey: loadChatApiKey(),
+  chatBusy: false,
+};
+
+const refs = {
+  searchInput: document.getElementById("searchInput"),
+  categorySelect: document.getElementById("categorySelect"),
+  sortSelect: document.getElementById("sortSelect"),
+  productsGrid: document.getElementById("productsGrid"),
+  emptyState: document.getElementById("emptyState"),
+  cartCount: document.getElementById("cartCount"),
+  cartDrawer: document.getElementById("cartDrawer"),
+  overlay: document.getElementById("overlay"),
+  openCartButton: document.getElementById("openCartButton"),
+  closeCartButton: document.getElementById("closeCartButton"),
+  cartItems: document.getElementById("cartItems"),
+  subtotalValue: document.getElementById("subtotalValue"),
+  shippingValue: document.getElementById("shippingValue"),
+  totalValue: document.getElementById("totalValue"),
+  checkoutButton: document.getElementById("checkoutButton"),
+  shippingHint: document.getElementById("shippingHint"),
+  shippingProgress: document.getElementById("shippingProgress"),
+  productModal: document.getElementById("productModal"),
+  modalBody: document.getElementById("modalBody"),
+  closeModalButton: document.getElementById("closeModalButton"),
+  chatToggleButton: document.getElementById("chatToggleButton"),
+  chatPanel: document.getElementById("chatPanel"),
+  chatCloseButton: document.getElementById("chatCloseButton"),
+  chatMessages: document.getElementById("chatMessages"),
+  chatForm: document.getElementById("chatForm"),
+  chatInput: document.getElementById("chatInput"),
+  apiKeyInput: document.getElementById("apiKeyInput"),
+  saveApiKeyButton: document.getElementById("saveApiKeyButton"),
+  aiStatusText: document.getElementById("aiStatusText"),
+};
+
+boot();
+
+function boot() {
+  renderCategoryOptions();
+  renderProducts();
+  renderCart();
+  bindEvents();
+  initRevealAnimation();
+  initChat();
+}
+
+function renderCategoryOptions() {
+  const categories = ["all", ...new Set(products.map((item) => item.category))];
+  refs.categorySelect.innerHTML = categories
+    .map((category) => {
+      if (category === "all") {
+        return '<option value="all">Все категории</option>';
+      }
+      return `<option value="${category}">${category}</option>`;
+    })
+    .join("");
+}
+
+function bindEvents() {
+  refs.searchInput.addEventListener("input", (event) => {
+    state.search = event.target.value.trim().toLowerCase();
+    renderProducts();
+  });
+
+  refs.categorySelect.addEventListener("change", (event) => {
+    state.category = event.target.value;
+    renderProducts();
+  });
+
+  refs.sortSelect.addEventListener("change", (event) => {
+    state.sort = event.target.value;
+    renderProducts();
+  });
+
+  refs.productsGrid.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const addButton = target.closest("[data-add-to-cart]");
+    if (addButton) {
+      addToCart(addButton.dataset.addToCart);
+      return;
+    }
+
+    const modalButton = target.closest("[data-open-modal]");
+    if (modalButton) {
+      openProductModal(modalButton.dataset.openModal);
+    }
+  });
+
+  refs.openCartButton.addEventListener("click", openCart);
+  refs.closeCartButton.addEventListener("click", closeCart);
+  refs.checkoutButton.addEventListener("click", startCheckout);
+  refs.overlay.addEventListener("click", () => {
+    closeCart();
+    closeModal();
+  });
+
+  refs.closeModalButton.addEventListener("click", closeModal);
+  refs.productModal.addEventListener("click", (event) => {
+    const dialogRect = refs.productModal.getBoundingClientRect();
+    const insideDialog =
+      event.clientX >= dialogRect.left &&
+      event.clientX <= dialogRect.right &&
+      event.clientY >= dialogRect.top &&
+      event.clientY <= dialogRect.bottom;
+    if (!insideDialog) {
+      closeModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCart();
+      closeModal();
+      closeChat();
+    }
+  });
+
+  if (refs.chatToggleButton) {
+    refs.chatToggleButton.addEventListener("click", toggleChat);
+  }
+  if (refs.chatCloseButton) {
+    refs.chatCloseButton.addEventListener("click", closeChat);
+  }
+  if (refs.chatForm) {
+    refs.chatForm.addEventListener("submit", handleChatSubmit);
+  }
+  if (refs.saveApiKeyButton) {
+    refs.saveApiKeyButton.addEventListener("click", saveChatApiKey);
+  }
+}
+
+function getFilteredProducts() {
+  const list = products.filter((item) => {
+    const matchesSearch =
+      state.search.length === 0 ||
+      item.name.toLowerCase().includes(state.search) ||
+      item.description.toLowerCase().includes(state.search) ||
+      item.tags.some((tag) => tag.toLowerCase().includes(state.search));
+    const matchesCategory = state.category === "all" || item.category === state.category;
+    return matchesSearch && matchesCategory;
+  });
+
+  switch (state.sort) {
+    case "newest":
+      return [...list].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    case "priceAsc":
+      return [...list].sort((a, b) => a.price - b.price);
+    case "priceDesc":
+      return [...list].sort((a, b) => b.price - a.price);
+    case "popular":
+    default:
+      return [...list].sort((a, b) => b.popularScore - a.popularScore);
+  }
+}
+
+function renderProducts() {
+  const list = getFilteredProducts();
+
+  refs.emptyState.classList.toggle("hidden", list.length > 0);
+  refs.productsGrid.innerHTML = list
+    .map(
+      (item) => `
+        <article class="product-card">
+          ${renderProductVisual(item)}
+          <div class="product-content">
+            <div class="product-head">
+              <h3>${item.name}</h3>
+              <span class="price">${formatPrice(item.price)}</span>
+            </div>
+            <p>${item.description}</p>
+            <div class="meta">
+              <span>${item.material}</span>
+              <span>Срок печати: ${item.leadDays} дн.</span>
+            </div>
+            <div class="card-actions">
+              <button type="button" class="btn btn-primary" data-add-to-cart="${item.id}">В корзину</button>
+              <button type="button" class="btn btn-ghost" data-open-modal="${item.id}">Подробнее</button>
+            </div>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function addToCart(productId) {
+  const product = products.find((item) => item.id === productId);
+  if (!product) {
+    return;
+  }
+
+  const line = state.cart.find((item) => item.id === productId);
+  if (line) {
+    line.quantity += 1;
+  } else {
+    state.cart.push({ id: productId, quantity: 1 });
+  }
+
+  persistCart();
+  renderCart();
+  openCart();
+}
+
+function removeFromCart(productId) {
+  state.cart = state.cart.filter((line) => line.id !== productId);
+  persistCart();
+  renderCart();
+}
+
+function changeQuantity(productId, delta) {
+  const line = state.cart.find((item) => item.id === productId);
+  if (!line) {
+    return;
+  }
+
+  line.quantity += delta;
+  if (line.quantity <= 0) {
+    removeFromCart(productId);
+    return;
+  }
+
+  persistCart();
+  renderCart();
+}
+
+function getCartDetailedLines() {
+  return state.cart
+    .map((line) => {
+      const product = products.find((item) => item.id === line.id);
+      if (!product) {
+        return null;
+      }
+      return {
+        ...line,
+        product,
+        lineTotal: product.price * line.quantity,
+      };
+    })
+    .filter(Boolean);
+}
+
+function renderCart() {
+  const lines = getCartDetailedLines();
+  const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const shipping = subtotal === 0 || subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 390;
+  const total = subtotal + shipping;
+  const progress = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100);
+
+  refs.cartCount.textContent = String(itemCount);
+  refs.subtotalValue.textContent = formatPrice(subtotal);
+  refs.shippingValue.textContent = shipping === 0 ? "Бесплатно" : formatPrice(shipping);
+  refs.totalValue.textContent = formatPrice(total);
+  refs.shippingProgress.style.width = `${progress}%`;
+
+  if (subtotal === 0) {
+    refs.shippingHint.textContent = `Добавьте товары на ${formatPrice(
+      FREE_SHIPPING_THRESHOLD,
+    )} для бесплатной доставки`;
+  } else if (subtotal < FREE_SHIPPING_THRESHOLD) {
+    refs.shippingHint.textContent = `До бесплатной доставки осталось ${formatPrice(
+      FREE_SHIPPING_THRESHOLD - subtotal,
+    )}`;
+  } else {
+    refs.shippingHint.textContent = "У вас бесплатная доставка";
+  }
+
+  if (lines.length === 0) {
+    refs.cartItems.innerHTML = '<p class="cart-empty">Корзина пока пустая. Добавьте что-нибудь из каталога.</p>';
+    return;
+  }
+
+  refs.cartItems.innerHTML = lines
+    .map(
+      (line) => `
+        <article class="cart-item">
+          <header>
+            <h4>${line.product.name}</h4>
+            <strong>${formatPrice(line.lineTotal)}</strong>
+          </header>
+          <small>${line.product.material} • ${line.product.leadDays} дн.</small>
+          <div class="qty-controls">
+            <button data-qty-change="${line.product.id}" data-delta="-1">−</button>
+            <span>${line.quantity} шт.</span>
+            <button data-qty-change="${line.product.id}" data-delta="1">+</button>
+            <button class="remove-btn" data-remove="${line.product.id}">Удалить</button>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+
+  refs.cartItems.querySelectorAll("[data-qty-change]").forEach((button) => {
+    button.addEventListener("click", () => {
+      changeQuantity(button.dataset.qtyChange, Number(button.dataset.delta));
+    });
+  });
+
+  refs.cartItems.querySelectorAll("[data-remove]").forEach((button) => {
+    button.addEventListener("click", () => removeFromCart(button.dataset.remove));
+  });
+}
+
+function openCart() {
+  refs.cartDrawer.classList.add("open");
+  refs.cartDrawer.setAttribute("aria-hidden", "false");
+  refs.overlay.classList.add("active");
+}
+
+function closeCart() {
+  refs.cartDrawer.classList.remove("open");
+  refs.cartDrawer.setAttribute("aria-hidden", "true");
+  refs.overlay.classList.remove("active");
+}
+
+function openProductModal(productId) {
+  const item = products.find((product) => product.id === productId);
+  if (!item) {
+    return;
+  }
+
+  refs.modalBody.innerHTML = `
+    ${renderProductVisual(item, true)}
+    <div class="modal-content">
+      <h3>${item.name}</h3>
+      <p>${item.description}</p>
+      <ul class="modal-list">
+        <li><span>Цена</span><strong>${formatPrice(item.price)}</strong></li>
+        <li><span>Материал</span><strong>${item.material}</strong></li>
+        <li><span>Срок печати</span><strong>${item.leadDays} дн.</strong></li>
+      </ul>
+      <button class="btn btn-primary wide" data-modal-add="${item.id}">Добавить в корзину</button>
+    </div>
+  `;
+
+  const addButton = refs.modalBody.querySelector("[data-modal-add]");
+  addButton.addEventListener("click", () => {
+    addToCart(item.id);
+    closeModal();
+  });
+
+  refs.productModal.showModal();
+  refs.overlay.classList.add("active");
+}
+
+function renderProductVisual(item, isModal = false) {
+  const wrapperClass = isModal ? "modal-visual" : "product-visual";
+  const imageClass = isModal ? "modal-image" : "product-image";
+  const hasImage = typeof item.image === "string" && item.image.trim().length > 0;
+  const imageMarkup = hasImage ? `<img class="${imageClass}" src="${item.image}" alt="${item.name}" />` : '<div class="wireframe"></div>';
+  const className = hasImage ? `${wrapperClass} has-image` : wrapperClass;
+  return `
+    <div class="${className}" style="--card-gradient: ${item.gradient}">
+      ${imageMarkup}
+      <span class="product-badge">${item.badge}</span>
+      <span class="product-category">${item.category}</span>
+    </div>
+  `;
+}
+
+function initChat() {
+  if (!refs.chatMessages) {
+    return;
+  }
+  if (refs.apiKeyInput && state.chatApiKey) {
+    refs.apiKeyInput.value = state.chatApiKey;
+  }
+  updateAiStatus();
+  addChatMessage(
+    "bot",
+    "Привет. Я чат RollerShop. Могу работать локально или через OpenAI API.",
+  );
+}
+
+function toggleChat() {
+  if (!refs.chatPanel) {
+    return;
+  }
+  refs.chatPanel.classList.toggle("hidden");
+}
+
+function closeChat() {
+  if (!refs.chatPanel) {
+    return;
+  }
+  refs.chatPanel.classList.add("hidden");
+}
+
+function handleChatSubmit(event) {
+  event.preventDefault();
+  if (state.chatBusy) {
+    return;
+  }
+
+  const text = refs.chatInput?.value.trim();
+  if (!text) {
+    return;
+  }
+
+  addChatMessage("user", text);
+  refs.chatInput.value = "";
+  respondInChat(text);
+}
+
+function addChatMessage(role, text) {
+  if (!refs.chatMessages) {
+    return;
+  }
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble ${role}`;
+  bubble.textContent = text;
+  refs.chatMessages.appendChild(bubble);
+  refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+}
+
+function getChatReply(text) {
+  const lower = text.toLowerCase();
+  if (lower.includes("достав")) {
+    return "Доставка считается в корзине автоматически. Если сумма заказа выше порога, доставка бесплатная.";
+  }
+  if (lower.includes("материал")) {
+    return "Чаще всего используем PLA, PLA+ и PETG. Если нужен конкретный материал, напиши это в кастомном заказе.";
+  }
+  if (lower.includes("срок") || lower.includes("дней") || lower.includes("печат")) {
+    return "Срок печати указан в карточке товара в поле 'Срок печати'.";
+  }
+  if (lower.includes("кастом") || lower.includes("индивиду")) {
+    return "Для кастомного заказа нажми кнопку 'Кастомный заказ' и опиши идею, размер и желаемый материал.";
+  }
+  return "Принял. Могу помочь с выбором товара, материалом, сроками печати и кастомным заказом.";
+}
+
+function saveChatApiKey() {
+  if (!refs.apiKeyInput) {
+    return;
+  }
+  const key = refs.apiKeyInput.value.trim();
+  state.chatApiKey = key;
+  try {
+    if (key) {
+      sessionStorage.setItem(CHAT_KEY_STORAGE, key);
+    } else {
+      sessionStorage.removeItem(CHAT_KEY_STORAGE);
+    }
+  } catch {
+    // Ignore storage issues in restricted environments.
+  }
+  updateAiStatus();
+  addChatMessage("bot", key ? "Ключ сохранен. AI-режим включен." : "Ключ удален. Работает локальный режим.");
+}
+
+function loadChatApiKey() {
+  try {
+    return sessionStorage.getItem(CHAT_KEY_STORAGE) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function updateAiStatus() {
+  if (!refs.aiStatusText) {
+    return;
+  }
+  refs.aiStatusText.textContent = state.chatApiKey
+    ? "AI включен через OpenAI API."
+    : "AI выключен. Можно общаться в локальном режиме.";
+}
+
+async function respondInChat(text) {
+  state.chatBusy = true;
+  try {
+    if (!state.chatApiKey) {
+      const localReply = getChatReply(text);
+      window.setTimeout(() => addChatMessage("bot", localReply), 300);
+      return;
+    }
+
+    addChatMessage("bot", "Думаю над ответом...");
+    const aiReply = await askOpenAI(text, state.chatApiKey);
+    replaceLastBotMessage(aiReply);
+  } catch (error) {
+    replaceLastBotMessage("Не удалось получить AI-ответ. Проверь ключ API и попробуй снова.");
+  } finally {
+    state.chatBusy = false;
+  }
+}
+
+function replaceLastBotMessage(text) {
+  if (!refs.chatMessages) {
+    return;
+  }
+  const botBubbles = refs.chatMessages.querySelectorAll(".chat-bubble.bot");
+  const last = botBubbles[botBubbles.length - 1];
+  if (!last) {
+    addChatMessage("bot", text);
+    return;
+  }
+  last.textContent = text;
+}
+
+async function askOpenAI(userText, apiKey) {
+  const payload = {
+    model: CHAT_MODEL,
+    input: [
+      {
+        role: "system",
+        content:
+          "Ты дружелюбный консультант магазина RollerShop. Отвечай кратко, по-русски, по теме товаров, материалов, сроков и заказа.",
+      },
+      { role: "user", content: userText },
+    ],
+  };
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = extractResponseText(data);
+  if (!text) {
+    throw new Error("Empty model response");
+  }
+  return text;
+}
+
+function extractResponseText(data) {
+  if (typeof data?.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  if (!Array.isArray(data?.output)) {
+    return "";
+  }
+
+  const chunks = [];
+  data.output.forEach((item) => {
+    if (!Array.isArray(item?.content)) {
+      return;
+    }
+    item.content.forEach((contentItem) => {
+      if (typeof contentItem?.text === "string" && contentItem.text.trim()) {
+        chunks.push(contentItem.text.trim());
+      }
+    });
+  });
+  return chunks.join("\n").trim();
+}
+
+function closeModal() {
+  if (refs.productModal.open) {
+    refs.productModal.close();
+  }
+  refs.overlay.classList.remove("active");
+}
+
+function startCheckout() {
+  const lines = getCartDetailedLines();
+  if (lines.length === 0) {
+    alert("Корзина пока пустая. Добавьте товары для оформления заказа.");
+    return;
+  }
+
+  const total = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const body = [
+    "Здравствуйте! Хочу оформить заказ:",
+    "",
+    ...lines.map((line) => `- ${line.product.name} x ${line.quantity} = ${formatPrice(line.lineTotal)}`),
+    "",
+    `Итого: ${formatPrice(total)}`,
+  ].join("\n");
+
+  const url = `mailto:hello@rollershop.store?subject=${encodeURIComponent(
+    "Новый заказ RollerShop",
+  )}&body=${encodeURIComponent(body)}`;
+
+  window.location.href = url;
+}
+
+function persistCart() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.cart));
+  } catch {
+    // In-app or file:// contexts may block storage; cart still works in memory.
+  }
+}
+
+function loadCart() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter((line) => typeof line?.id === "string" && Number.isInteger(line?.quantity))
+      .map((line) => ({
+        id: line.id,
+        quantity: Math.max(1, line.quantity),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function formatPrice(value) {
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency: "RUB",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function initRevealAnimation() {
+  const revealNodes = document.querySelectorAll(".reveal");
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.15 },
+  );
+  revealNodes.forEach((node) => observer.observe(node));
+}
