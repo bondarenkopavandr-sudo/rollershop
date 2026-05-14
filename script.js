@@ -70,6 +70,9 @@ const refs = {
   productModal: document.getElementById("productModal"),
   modalBody: document.getElementById("modalBody"),
   closeModalButton: document.getElementById("closeModalButton"),
+  imageLightbox: document.getElementById("imageLightbox"),
+  lightboxImage: document.getElementById("lightboxImage"),
+  closeLightboxButton: document.getElementById("closeLightboxButton"),
   chatToggleButton: document.getElementById("chatToggleButton"),
   chatPanel: document.getElementById("chatPanel"),
   chatCloseButton: document.getElementById("chatCloseButton"),
@@ -144,6 +147,16 @@ function bindEvents() {
   });
 
   refs.closeModalButton.addEventListener("click", closeModal);
+  if (refs.closeLightboxButton) {
+    refs.closeLightboxButton.addEventListener("click", closeLightbox);
+  }
+  if (refs.imageLightbox) {
+    refs.imageLightbox.addEventListener("click", (event) => {
+      if (event.target === refs.imageLightbox) {
+        closeLightbox();
+      }
+    });
+  }
   refs.productModal.addEventListener("click", (event) => {
     const dialogRect = refs.productModal.getBoundingClientRect();
     const insideDialog =
@@ -160,6 +173,7 @@ function bindEvents() {
     if (event.key === "Escape") {
       closeCart();
       closeModal();
+      closeLightbox();
       closeChat();
     }
   });
@@ -473,6 +487,12 @@ function wireGalleryInteractions(scope) {
       const dot = target.closest("[data-gallery-dot]");
       if (dot) {
         setGalleryIndex(gallery, Number(dot.dataset.galleryDot));
+        return;
+      }
+
+      const slide = target.closest("[data-gallery-slide]");
+      if (slide && slide.getAttribute("src")) {
+        openLightbox(slide.getAttribute("src"), slide.getAttribute("alt") || "Фото товара");
       }
     });
 
@@ -502,6 +522,24 @@ function wireGalleryInteractions(scope) {
       { passive: true },
     );
   });
+}
+
+function openLightbox(src, alt) {
+  if (!refs.imageLightbox || !refs.lightboxImage) {
+    return;
+  }
+  refs.lightboxImage.src = src;
+  refs.lightboxImage.alt = alt;
+  refs.imageLightbox.showModal();
+}
+
+function closeLightbox() {
+  if (!refs.imageLightbox) {
+    return;
+  }
+  if (refs.imageLightbox.open) {
+    refs.imageLightbox.close();
+  }
 }
 
 function shiftGallery(gallery, delta) {
