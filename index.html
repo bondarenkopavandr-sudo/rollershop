@@ -64,10 +64,7 @@
       <section class="section reveal" id="catalog">
         <div class="section-heading">
           <h2>Каталог товаров</h2>
-          <p>
-            Фильтруй по категориям, сортируй по цене и добавляй товары в корзину.
-            Товары добавляются в `script.js` в массиве `products`.
-          </p>
+          <p>Выбирай товары и добавляй в корзину.</p>
         </div>
 
         <div class="controls">
@@ -109,7 +106,7 @@
               прототипов, подарков и маленьких брендов.
             </p>
           </div>
-          <a class="btn btn-primary" href="mailto:hello@rollershop.store?subject=Кастомный заказ">
+          <a class="btn btn-primary" href="mailto:bp101109@yandex.ru?subject=Кастомный заказ">
             Обсудить проект
           </a>
         </div>
@@ -160,32 +157,25 @@
     </dialog>
 
     <section class="chat-widget" id="chatWidget" aria-label="Чат поддержки">
-      <button class="chat-toggle" id="chatToggleButton" type="button">Чат</button>
+      <button class="chat-toggle" id="chatToggleButton" type="button">Связь с админом</button>
       <div class="chat-panel hidden" id="chatPanel">
         <header class="chat-header">
-          <strong>RollerShop Chat</strong>
+          <strong>Связь с админом</strong>
           <button class="icon-button" id="chatCloseButton" type="button" aria-label="Закрыть чат">
             ✕
           </button>
         </header>
-        <div class="chat-settings">
-          <label for="apiKeyInput">OpenAI API key</label>
-          <div class="chat-settings-row">
-            <input id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
-            <button id="saveApiKeyButton" class="btn btn-secondary" type="button">Сохранить</button>
-          </div>
-          <small id="aiStatusText">AI выключен. Можно общаться в локальном режиме.</small>
-        </div>
-        <div class="chat-messages" id="chatMessages"></div>
         <form class="chat-form" id="chatForm">
+          <input id="chatNameInput" type="text" placeholder="Ваше имя" autocomplete="off" />
           <input
             id="chatInput"
             type="text"
-            placeholder="Напиши вопрос: доставка, материалы, кастом..."
+            placeholder="Напишите сообщение администратору"
             autocomplete="off"
           />
-          <button class="btn btn-primary" type="submit">Отправить</button>
+          <button class="btn btn-primary" type="submit">Отправить админу</button>
         </form>
+        <small class="chat-note">Сообщение откроется в почтовом клиенте на адрес bp101109@yandex.ru.</small>
       </div>
     </section>
   </body>

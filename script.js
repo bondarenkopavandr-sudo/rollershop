@@ -1,8 +1,7 @@
 const FREE_SHIPPING_THRESHOLD = 7000;
 const STORAGE_KEY = "rollershop-cart-v1";
 const LEGACY_STORAGE_KEY = "layerforge-cart-v1";
-const CHAT_KEY_STORAGE = "rollershop-openai-key";
-const CHAT_MODEL = "gpt-4.1-mini";
+const ADMIN_EMAIL = "bp101109@yandex.ru";
 
 const products = [
   {
@@ -27,8 +26,6 @@ const state = {
   category: "all",
   sort: "popular",
   cart: loadCart(),
-  chatApiKey: loadChatApiKey(),
-  chatBusy: false,
 };
 
 const refs = {
@@ -55,12 +52,9 @@ const refs = {
   chatToggleButton: document.getElementById("chatToggleButton"),
   chatPanel: document.getElementById("chatPanel"),
   chatCloseButton: document.getElementById("chatCloseButton"),
-  chatMessages: document.getElementById("chatMessages"),
   chatForm: document.getElementById("chatForm"),
+  chatNameInput: document.getElementById("chatNameInput"),
   chatInput: document.getElementById("chatInput"),
-  apiKeyInput: document.getElementById("apiKeyInput"),
-  saveApiKeyButton: document.getElementById("saveApiKeyButton"),
-  aiStatusText: document.getElementById("aiStatusText"),
 };
 
 boot();
@@ -157,9 +151,6 @@ function bindEvents() {
   }
   if (refs.chatForm) {
     refs.chatForm.addEventListener("submit", handleChatSubmit);
-  }
-  if (refs.saveApiKeyButton) {
-    refs.saveApiKeyButton.addEventListener("click", saveChatApiKey);
   }
 }
 
@@ -393,17 +384,7 @@ function renderProductVisual(item, isModal = false) {
 }
 
 function initChat() {
-  if (!refs.chatMessages) {
-    return;
-  }
-  if (refs.apiKeyInput && state.chatApiKey) {
-    refs.apiKeyInput.value = state.chatApiKey;
-  }
-  updateAiStatus();
-  addChatMessage(
-    "bot",
-    "Привет. Я чат RollerShop. Могу работать локально или через OpenAI API.",
-  );
+  // Direct admin contact mode: no AI setup required.
 }
 
 function toggleChat() {
@@ -422,171 +403,16 @@ function closeChat() {
 
 function handleChatSubmit(event) {
   event.preventDefault();
-  if (state.chatBusy) {
-    return;
-  }
-
+  const name = refs.chatNameInput?.value.trim() || "Без имени";
   const text = refs.chatInput?.value.trim();
   if (!text) {
     return;
   }
 
-  addChatMessage("user", text);
   refs.chatInput.value = "";
-  respondInChat(text);
-}
-
-function addChatMessage(role, text) {
-  if (!refs.chatMessages) {
-    return;
-  }
-  const bubble = document.createElement("div");
-  bubble.className = `chat-bubble ${role}`;
-  bubble.textContent = text;
-  refs.chatMessages.appendChild(bubble);
-  refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
-}
-
-function getChatReply(text) {
-  const lower = text.toLowerCase();
-  if (lower.includes("достав")) {
-    return "Доставка считается в корзине автоматически. Если сумма заказа выше порога, доставка бесплатная.";
-  }
-  if (lower.includes("материал")) {
-    return "Чаще всего используем PLA, PLA+ и PETG. Если нужен конкретный материал, напиши это в кастомном заказе.";
-  }
-  if (lower.includes("срок") || lower.includes("дней") || lower.includes("печат")) {
-    return "Срок печати указан в карточке товара в поле 'Срок печати'.";
-  }
-  if (lower.includes("кастом") || lower.includes("индивиду")) {
-    return "Для кастомного заказа нажми кнопку 'Кастомный заказ' и опиши идею, размер и желаемый материал.";
-  }
-  return "Принял. Могу помочь с выбором товара, материалом, сроками печати и кастомным заказом.";
-}
-
-function saveChatApiKey() {
-  if (!refs.apiKeyInput) {
-    return;
-  }
-  const key = refs.apiKeyInput.value.trim();
-  state.chatApiKey = key;
-  try {
-    if (key) {
-      sessionStorage.setItem(CHAT_KEY_STORAGE, key);
-    } else {
-      sessionStorage.removeItem(CHAT_KEY_STORAGE);
-    }
-  } catch {
-    // Ignore storage issues in restricted environments.
-  }
-  updateAiStatus();
-  addChatMessage("bot", key ? "Ключ сохранен. AI-режим включен." : "Ключ удален. Работает локальный режим.");
-}
-
-function loadChatApiKey() {
-  try {
-    return sessionStorage.getItem(CHAT_KEY_STORAGE) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function updateAiStatus() {
-  if (!refs.aiStatusText) {
-    return;
-  }
-  refs.aiStatusText.textContent = state.chatApiKey
-    ? "AI включен через OpenAI API."
-    : "AI выключен. Можно общаться в локальном режиме.";
-}
-
-async function respondInChat(text) {
-  state.chatBusy = true;
-  try {
-    if (!state.chatApiKey) {
-      const localReply = getChatReply(text);
-      window.setTimeout(() => addChatMessage("bot", localReply), 300);
-      return;
-    }
-
-    addChatMessage("bot", "Думаю над ответом...");
-    const aiReply = await askOpenAI(text, state.chatApiKey);
-    replaceLastBotMessage(aiReply);
-  } catch (error) {
-    replaceLastBotMessage("Не удалось получить AI-ответ. Проверь ключ API и попробуй снова.");
-  } finally {
-    state.chatBusy = false;
-  }
-}
-
-function replaceLastBotMessage(text) {
-  if (!refs.chatMessages) {
-    return;
-  }
-  const botBubbles = refs.chatMessages.querySelectorAll(".chat-bubble.bot");
-  const last = botBubbles[botBubbles.length - 1];
-  if (!last) {
-    addChatMessage("bot", text);
-    return;
-  }
-  last.textContent = text;
-}
-
-async function askOpenAI(userText, apiKey) {
-  const payload = {
-    model: CHAT_MODEL,
-    input: [
-      {
-        role: "system",
-        content:
-          "Ты дружелюбный консультант магазина RollerShop. Отвечай кратко, по-русски, по теме товаров, материалов, сроков и заказа.",
-      },
-      { role: "user", content: userText },
-    ],
-  };
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const text = extractResponseText(data);
-  if (!text) {
-    throw new Error("Empty model response");
-  }
-  return text;
-}
-
-function extractResponseText(data) {
-  if (typeof data?.output_text === "string" && data.output_text.trim()) {
-    return data.output_text.trim();
-  }
-
-  if (!Array.isArray(data?.output)) {
-    return "";
-  }
-
-  const chunks = [];
-  data.output.forEach((item) => {
-    if (!Array.isArray(item?.content)) {
-      return;
-    }
-    item.content.forEach((contentItem) => {
-      if (typeof contentItem?.text === "string" && contentItem.text.trim()) {
-        chunks.push(contentItem.text.trim());
-      }
-    });
-  });
-  return chunks.join("\n").trim();
+  const subject = encodeURIComponent("Сообщение с сайта RollerShop");
+  const body = encodeURIComponent(`Имя: ${name}\n\nСообщение:\n${text}`);
+  window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
 }
 
 function closeModal() {
@@ -612,7 +438,7 @@ function startCheckout() {
     `Итого: ${formatPrice(total)}`,
   ].join("\n");
 
-  const url = `mailto:hello@rollershop.store?subject=${encodeURIComponent(
+  const url = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(
     "Новый заказ RollerShop",
   )}&body=${encodeURIComponent(body)}`;
 

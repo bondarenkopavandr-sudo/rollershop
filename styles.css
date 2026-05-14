@@ -1060,7 +1060,7 @@ h1 {
 
 .chat-form {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid rgba(159, 178, 202, 0.2);
@@ -1072,6 +1072,13 @@ h1 {
   background: var(--surface);
   color: var(--text);
   padding: 10px 12px;
+}
+
+.chat-note {
+  display: block;
+  padding: 0 12px 12px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
 }
 
 @keyframes spin {
