@@ -1051,6 +1051,28 @@ h1 {
   padding-bottom: 6px;
 }
 
+.color-config {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.color-config label {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+}
+
+.color-config select,
+.color-config input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  min-height: 42px;
+  padding: 9px 11px;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(18px);

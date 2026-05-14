@@ -16,6 +16,8 @@ const products = [
     createdAt: "2026-05-14",
     description: "Ящик для разных игр.",
     tags: ["ящик", "коробка", "игры"],
+    colorOptions: ["Красный", "Желтый", "Синий", "Зеленый"],
+    allowCustomColor: true,
     images: [
       "MCV_ChaosCubed_BPS_Apr28_Campaign_LineUp_1280x720.jpg",
       "MCV_ChaosCubed_BPS_Apr28_Campaign_TargetPractice_1280x720.jpg",
@@ -128,7 +130,13 @@ function bindEvents() {
 
     const addButton = target.closest("[data-add-to-cart]");
     if (addButton) {
-      addToCart(addButton.dataset.addToCart);
+      const productId = addButton.dataset.addToCart;
+      const product = products.find((item) => item.id === productId);
+      if (product && hasColorConfig(product)) {
+        openProductModal(productId);
+        return;
+      }
+      addToCart(productId);
       return;
     }
 
@@ -244,17 +252,25 @@ function renderProducts() {
   wireGalleryInteractions(refs.productsGrid);
 }
 
-function addToCart(productId) {
+function addToCart(productId, options = {}) {
   const product = products.find((item) => item.id === productId);
   if (!product) {
     return;
   }
 
-  const line = state.cart.find((item) => item.id === productId);
+  const normalizedOptions = normalizeProductOptions(product, options);
+  const lineKey = getCartLineKey(productId, normalizedOptions.color);
+  const line = state.cart.find((item) => getCartLineKey(item.id, item.color) === lineKey);
   if (line) {
     line.quantity += 1;
   } else {
-    state.cart.push({ id: productId, quantity: 1 });
+    state.cart.push({
+      id: productId,
+      quantity: 1,
+      color: normalizedOptions.color,
+      baseColor: normalizedOptions.baseColor,
+      customColor: normalizedOptions.customColor,
+    });
   }
 
   persistCart();
@@ -262,21 +278,21 @@ function addToCart(productId) {
   openCart();
 }
 
-function removeFromCart(productId) {
-  state.cart = state.cart.filter((line) => line.id !== productId);
+function removeFromCart(lineKey) {
+  state.cart = state.cart.filter((line) => getCartLineKey(line.id, line.color) !== lineKey);
   persistCart();
   renderCart();
 }
 
-function changeQuantity(productId, delta) {
-  const line = state.cart.find((item) => item.id === productId);
+function changeQuantity(lineKey, delta) {
+  const line = state.cart.find((item) => getCartLineKey(item.id, item.color) === lineKey);
   if (!line) {
     return;
   }
 
   line.quantity += delta;
   if (line.quantity <= 0) {
-    removeFromCart(productId);
+    removeFromCart(lineKey);
     return;
   }
 
@@ -339,12 +355,12 @@ function renderCart() {
             <h4>${line.product.name}</h4>
             <strong>${formatPrice(line.lineTotal)}</strong>
           </header>
-          <small>${line.product.material} • ${line.product.leadDays} дн.</small>
+          <small>${line.product.material} • ${line.product.leadDays} дн.${line.color ? ` • Цвет: ${line.color}` : ""}</small>
           <div class="qty-controls">
-            <button data-qty-change="${line.product.id}" data-delta="-1">−</button>
+            <button data-qty-change="${getCartLineKey(line.product.id, line.color)}" data-delta="-1">−</button>
             <span>${line.quantity} шт.</span>
-            <button data-qty-change="${line.product.id}" data-delta="1">+</button>
-            <button class="remove-btn" data-remove="${line.product.id}">Удалить</button>
+            <button data-qty-change="${getCartLineKey(line.product.id, line.color)}" data-delta="1">+</button>
+            <button class="remove-btn" data-remove="${getCartLineKey(line.product.id, line.color)}">Удалить</button>
           </div>
         </article>
       `,
@@ -390,13 +406,14 @@ function openProductModal(productId) {
         <li><span>Материал</span><strong>${item.material}</strong></li>
         <li><span>Срок печати</span><strong>${item.leadDays} дн.</strong></li>
       </ul>
+      ${renderColorControls(item)}
       <button class="btn btn-primary wide" data-modal-add="${item.id}">Добавить в корзину</button>
     </div>
   `;
 
   const addButton = refs.modalBody.querySelector("[data-modal-add]");
   addButton.addEventListener("click", () => {
-    addToCart(item.id);
+    addToCart(item.id, readColorControls(item));
     closeModal();
   });
 
@@ -524,6 +541,59 @@ function wireGalleryInteractions(scope) {
   });
 }
 
+function hasColorConfig(product) {
+  return Array.isArray(product.colorOptions) && product.colorOptions.length > 0;
+}
+
+function renderColorControls(product) {
+  if (!hasColorConfig(product)) {
+    return "";
+  }
+  const optionMarkup = product.colorOptions
+    .map((color) => `<option value="${color}">${color}</option>`)
+    .join("");
+
+  return `
+    <div class="color-config">
+      <label for="modalColorSelect">Цвет</label>
+      <select id="modalColorSelect">
+        ${optionMarkup}
+      </select>
+      <label for="modalCustomColorInput">Свой цвет:</label>
+      <input id="modalCustomColorInput" type="text" placeholder="Например: Оранжевый" />
+    </div>
+  `;
+}
+
+function readColorControls(product) {
+  if (!hasColorConfig(product)) {
+    return {};
+  }
+  const selectedColor = document.getElementById("modalColorSelect")?.value || product.colorOptions[0];
+  const customColor = document.getElementById("modalCustomColorInput")?.value.trim() || "";
+  return { color: selectedColor, customColor };
+}
+
+function normalizeProductOptions(product, options) {
+  if (!hasColorConfig(product)) {
+    return { color: "", baseColor: "", customColor: "" };
+  }
+  const baseColor = typeof options.color === "string" && options.color.trim().length > 0
+    ? options.color.trim()
+    : product.colorOptions[0];
+  const customColor = typeof options.customColor === "string" ? options.customColor.trim() : "";
+  const color = customColor || baseColor;
+  return {
+    color,
+    baseColor,
+    customColor,
+  };
+}
+
+function getCartLineKey(productId, color = "") {
+  return `${productId}::${(color || "").toLowerCase()}`;
+}
+
 function openLightbox(src, alt) {
   if (!refs.imageLightbox || !refs.lightboxImage) {
     return;
@@ -618,7 +688,10 @@ function startCheckout() {
   const body = [
     "Здравствуйте! Хочу оформить заказ:",
     "",
-    ...lines.map((line) => `- ${line.product.name} x ${line.quantity} = ${formatPrice(line.lineTotal)}`),
+    ...lines.map((line) => {
+      const colorInfo = line.color ? ` (Цвет: ${line.color})` : "";
+      return `- ${line.product.name}${colorInfo} x ${line.quantity} = ${formatPrice(line.lineTotal)}`;
+    }),
     "",
     `Итого: ${formatPrice(total)}`,
   ].join("\n");
@@ -653,6 +726,9 @@ function loadCart() {
       .map((line) => ({
         id: line.id,
         quantity: Math.max(1, line.quantity),
+        color: typeof line?.color === "string" ? line.color : "",
+        baseColor: typeof line?.baseColor === "string" ? line.baseColor : "",
+        customColor: typeof line?.customColor === "string" ? line.customColor : "",
       }));
   } catch {
     return [];
