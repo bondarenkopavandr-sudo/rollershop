@@ -19,6 +19,20 @@ const products = [
     image: "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
     gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
   },
+    {
+    id: "rs-002",
+    name: "Буквы",
+    category: "Для развития",
+    price: 300,
+    leadDays: 2,
+    material: "PLA",
+    badge: "Новинка",
+    popularScore: 90,
+    createdAt: "2026-05-14",
+    description: "Буквы для отработки гласных/согласных, твёрдых/мягких, шнуровка, а также выкладывание бусинок.",
+    tags: ["буквы", "алфавит", "игры", "шнуровка", "азбука"],
+    gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
+  },
 ];
 
 const state = {
