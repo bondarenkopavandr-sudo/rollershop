@@ -17,6 +17,8 @@ const products = [
     description: "Ящик для разных игр.",
     tags: ["ящик", "коробка", "игры"],
     images: [
+      "MCV_ChaosCubed_BPS_Apr28_Campaign_LineUp_1280x720.jpg",
+      "MCV_ChaosCubed_BPS_Apr28_Campaign_TargetPractice_1280x720.jpg",
       "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
     ],
     gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
