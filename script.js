@@ -36,7 +36,7 @@ const products = [
     description: "Буквы для отработки гласных/согласных, твёрдых/мягких, шнуровка, а также выкладывание бусинок. \n От 5 штук 1250",
     tags: ["буквы", "алфавит", "игры", "шнуровка", "азбука"],
     images: [
-      "MCV_ChaosCubed_BPS_Apr28_EditorialExclusive_CampByTheGeyser_1170x500.jpg",
+      "Без имени-1",
     ],
     gradient: "linear-gradient(135deg, #3f5d84 0%, #1e2e46 70%)",
   },
